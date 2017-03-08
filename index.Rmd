@@ -9,11 +9,13 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,message=FALSE,warning=FALSE)
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning=FALSE)
 ```
 
 ##Abstract
 I used metabolite and clinical data for 80 individuals in order to examine if there are clusters in the metabolite profile. I then analysed whether these groups associated with certain clinical parameters. I used k-means clustering for the cluster analysis and LDA for the discriminate analysis. I  found three groups with regards to metabolite profiles and different clinical parameters associating with these these groups i.e. hdl, fatp, tg for cluster 3, scfat and bmi for cluster 2, iafat for cluster 1.
+
+Results at https://muniandy.github.io/IODS-final/
 
 ## Final assignment using my own data
 We have multivariate data: clinical and metabolite data. The aim of the study is to see if there are clear metabolite profiles in our dataset i.e. to see if our individuals cluster according to their metabolite profiles (83 metabolites). Biologically speaking, this will show if we can maindividuals into clusters using metabolite profiles. While we are at it, we want to see if these profiles manifest as different clinical profiles. In other words, can we find differences in the previously defined clusters when you look at the clinical parameters of the individuals in the clusters.
@@ -25,7 +27,7 @@ The data was pre-processed to exclude metabolites with NA, some clinical variabl
 2) Do these groups show differences in clinical measures as well?
 
 ###data wrangling script is here
-<\IODS-final\create_metab.R>
+"https://github.com/muniandy/IODS-final/create_metab.R"
 
 ###methods used: kmeans clustering and LDA
 
@@ -37,7 +39,7 @@ library(tidyverse)
 
 
 ##Data Variables
-```{r read metabolite and clinical data, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+```{r read metabolite and clinical data, eval=TRUE, message = FALSE, warnings= FALSE, echo=TRUE}
 # load the data
 
 
