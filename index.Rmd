@@ -1,30 +1,256 @@
 ---
 title: "Final assignment"
-author: "Mahes Muniandy"
+author: "Maheswary Muniandy <maheswary.muniandy@helsinki.fi>"
 date: "7 March 2017"
-output: html_document
+email: <maheswary.muniandy@helsinki.fi>
+output: 
+  html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,message=FALSE,warning=FALSE)
 ```
 
-## R Markdown
+##Abstract
+I used metabolite and clinical data for 80 individuals in order to examine if there are clusters in the metabolite profile. I then analysed whether these groups associated with certain clinical parameters. I used k-means clustering for the cluster analysis and LDA for the discriminate analysis. I  found three groups with regards to metabolite profiles and different clinical parameters associating with these these groups i.e. hdl, fatp, tg for cluster 3, scfat and bmi for cluster 2, iafat for cluster 1.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Final assignment using my own data
+We have multivariate data: clinical and metabolite data. The aim of the study is to see if there are clear metabolite profiles in our dataset i.e. to see if our individuals cluster according to their metabolite profiles (83 metabolites). Biologically speaking, this will show if we can maindividuals into clusters using metabolite profiles. While we are at it, we want to see if these profiles manifest as different clinical profiles. In other words, can we find differences in the previously defined clusters when you look at the clinical parameters of the individuals in the clusters.
+T see if these clusters also show differences in clinical measures, I will use LDA to analyse the difference between the clinical measures in the groups that have been defined previsouly by metabolite measures.
+The data was pre-processed to exclude metabolites with NA, some clinical variables removed and some clinical variables renames.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+###The research question is:
+1) Do individuals fall into groups according to their genome-wide metabolites?
+2) Do these groups show differences in clinical measures as well?
 
-```{r cars}
-summary(cars)
+###data wrangling script is here
+<\IODS-final\create_metab.R>
+
+###methods used: kmeans clustering and LDA
+
+```{r loadlibs, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+library(ggplot2)
+library(MASS)
+library(tidyverse)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+##Data Variables
+```{r read metabolite and clinical data, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# load the data
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+metab = read.table("metabolites.txt", sep="\t", quote = "", stringsAsFactors = FALSE, header=TRUE)
+
+# explore the dataset
+str(metab)
+print("Summary before scaling")
+summary(metab)
+dim(metab)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+This dataset has both clinical measures (9 measures) and metabolite measures (83 measures) for 80 individuals. The clinical measures show the health parameters that the individulas exhibit and were measures by a clinician. The metabolites were measured in a mass spectomertry lab using blood samples from these individuals. In essence, the data is two-fold: the clinical measures show the outer phenotype/symptoms, the metabolite measures show the molecular phenotype and measure the protein amount in the body.
+
+The metabolites are highly co-linear.
+
+The individuals themselves are monozygotic twins and thus share the same genotype (gene profile) as his or her co-twin. 
+
+The data are as follows:
+ID       : individual Id
+batch    : the batch in which the blood samples for the metabolite was run
+family   : family ID
+sex      : male or female
+age      : age of individual
+bmi      : body mass index (this has been known to be a major confounder for most metabolites)
+Smoking  : 1= smoking, 2= non-smoking individual 
+fatp     : fat percentage
+liverfat : liverfat amount
+iafat    : inter-abdominal fat amount
+scfat    : subcutaneous fat amount
+kol      : total cholesterol level
+hdl      : hdl cholesterol level
+ldl      : ldl cholesterol level
+tg       : triglicerides level
+crp      : inflammation level
+HMDB00123: HMDB00791: 83 different metabolites named according to the Human Metabolome DataBase.
+
+There are 80 rows and 109 variables in this dataset.
+
+All variables are numerical/integer except sex, batch and smoking which are factors.
+
+##Relationship and correlation between clinical variables
+```{r clinical_pairs, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+clinical_only=metab[,c(2,4:16)]
+pairs(clinical_only, cex=0.1, pch=16)
+# calculate the correlation matrix and round it
+cor_matrix<-cor(clinical_only) 
+
+# print the correlation matrix
+cor_matrix %>% round(2)  %>% print() 
+
+library(corrplot)
+
+cor.mtest <- function(mat, conf.level = 0.95){
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat <- lowCI.mat <- uppCI.mat <- matrix(NA, n, n)
+  diag(p.mat) <- 0
+  diag(lowCI.mat) <- diag(uppCI.mat) <- 1
+  for(i in 1:(n-1)){
+    for(j in (i+1):n){
+      tmp <- cor.test(mat[,i], mat[,j], conf.level = conf.level)
+      p.mat[i,j] <- p.mat[j,i] <- tmp$p.value
+      lowCI.mat[i,j] <- lowCI.mat[j,i] <- tmp$conf.int[1]
+      uppCI.mat[i,j] <- uppCI.mat[j,i] <- tmp$conf.int[2]
+    }
+  }
+  return(list(p.mat, lowCI.mat, uppCI.mat))
+}
+
+res1 <- cor.mtest(clinical_only,0.95)
+# visualize the correlation matrix
+corrplot.mixed(cor_matrix,tl.cex=0.5,p.mat = res1[[1]], insig = "blank"
+,mar=c(1,0,2,0),number.cex=0.7, title="Correlation between clinical variables")
+
+
+
+```
+
+
+There seems to be a number of linear associations between the variables as shown in the pairplot, eg. between bmi and scfat,
+bmi and iafat, scfat and fatp, kol and ldl.
+
+High positive correlations:
+bmi with fatp, iafat and scfat, fatp with scfat, liverfat with iafat, iafat with tg, kol with ldl, iafat with tg.
+
+Here, no correlation value was shown for crp because there was one NA value in there. I am not removing the row because I am interested in other clinical values that have the full dataset.
+
+The table above shows the correlations between the variables. The correlation plot below it shows the value of the above correlations with circles: the bigger the circle, the higher the correlation. Only significant correlations (p-values<0.05) are shown.
+
+
+##Data Standardization
+Summary after scaling of data
+```{r scale data, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# scale the data
+# center and standardize variables
+clinical_scaled_data <- scale(clinical_only)
+
+# summaries of the scaled variables
+summary(clinical_scaled_data)
+```
+
+## k-means clustering on metabolite data
+```{r kmeans, eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+set.seed(123)
+metab_only=metab[,c(17:109)]
+metab_only=scale(metab_only)
+
+# euclidean distance matrix
+dist_eu <- dist(metab_only)
+#dist_eu <- dist(x_scores(1:20))
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(dist_eu, k)$tot.withinss})
+
+# visualize the results
+plot(1:k_max, twcss, type='b')
+
+# k-means clustering
+km <-kmeans(dist_eu, centers = 2)
+km$cluster
+
+```
+
+
+From the plot, it looks like 3 might be a good number of clusters.
+
+```{r plot k-clusters , eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# k-means clustering
+km <-kmeans(dist_eu, centers = 3)
+
+library(cluster) 
+clusplot(clinical_only,km$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+
+```
+
+```{r chop data , eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# create a categorical variable 'crime'
+cluster <- km$cluster
+# add the new categorical value to scaled data
+clinical_scaled_data<- data.frame(clinical_scaled_data, cluster)
+
+head(clinical_scaled_data)
+```
+
+##LDA Analysis
+
+We now need to split out data into test and training. And we do lda on the train data.
+
+
+```{r testtrain data , eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# number of rows in the Boston dataset 
+# remove original crp from the dataset, it has NA
+clinical_scaled_data <- dplyr::select(clinical_scaled_data, -crp)
+
+n <- nrow(clinical_scaled_data)
+
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+
+# create train set
+train <- clinical_scaled_data[ind,]
+
+# create test set 
+test <- clinical_scaled_data[-ind,]
+
+# linear discriminant analysis
+lda.fit <- lda(as.numeric(cluster)~., data = train)
+# print the lda.fit object
+lda.fit
+# the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex)
+}
+classes <- as.numeric(train$cluster)
+plot(lda.fit, dimen = 2, col = classes)
+lda.arrows(lda.fit, myscale = 2)
+
+
+```
+
+We fit the linear discriminant analysis on the train set. We use the categorical cluster variable as the target variable and all the other variables in the dataset as predictor variables. This gives us an idea how cluster interacts with the other variables.
+
+The biplot shows us which variables are dragging the observations 
+into certain clusters. For instance hdl, fatp, tg are pulling the observation 
+towards cluster 3, scfat and bmi towards cluster 2, iafat towards cluster 1.
+
+We now use the model to predict the cluster classes in the test data.
+```{r test data , eval=TRUE, message = FALSE, warnings= FALSE, echo=FALSE}
+# predict classes with test data
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulate the results
+table(correct = test$cluster, predicted = lda.pred$class)
+
+```
+
+
+The prediction was highly accurate for the cluster 2 but not 
+so accurate for other clusters.
+
+
+##Conclusion and discussion
+In conclusion, kmeans clustering revealed that there were 3 metabolite profiles.
+These metabolite profiles then associated nicely with some key clinical measures like scfat, intraabdominal fat, tg and hdl. It might be useful in the future in predicting the molecular patterns just by looking at the clinical measures.
+
+I found that personally for me it is difficult to figure our how many clusters are optimal. And since I deal with twin data (related samples), I'm not sure if I should do anything differently for these methods.
